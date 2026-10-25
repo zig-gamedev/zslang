@@ -188,12 +188,12 @@ fn addSuite(
     test_step.dependOn(&run_tests.step);
     
     // Copy Slang Windows DLL to bin output dir
-    //if (t.os.tag == .windows) {
-    //    b.addInstallDirectory(.{
-    //        .source_dir = dep.path("runtime"),
-    //        .install_dir = .bin,
-    //        .install_subdir = "",
-    //    });
-    //}
+    if (t.os.tag == .windows) {
+        run_tests.step.dependOn(&b.addInstallDirectory(.{
+            .source_dir = runtime_dir,
+            .install_dir = .bin,
+            .install_subdir = "",
+        }).step);
+    }
 }
 
