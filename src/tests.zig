@@ -620,7 +620,7 @@ test "a search path resolves an import from disk" {
     const file_path = try tmp.dir.realPathFileAlloc(io, "ondisk.slang", gpa);
     defer gpa.free(file_path);
     const dir_path = std.fs.path.dirname(file_path).?;
-    const dir_z = try gpa.dupeZ(u8, dir_path);
+    const dir_z = try gpa.dupeSentinel(u8, dir_path, 0);
     defer gpa.free(dir_z);
 
     const global = try slang.GlobalSession.create();

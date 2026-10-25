@@ -111,7 +111,6 @@ pub fn build(b: *std.Build) !void {
     const runtime_dir = dep.path(runtime_sub);
 
     slang_mod.addLibraryPath(link_dir);
-    // Windows resolves DLLs by search path; an rpath there means nothing.
     if (t.os.tag != .windows) slang_mod.addRPath(runtime_dir);
 
     try addSuite(b, target, optimize, dep, slang_mod, test_step);
@@ -161,14 +160,6 @@ fn addSuite(
     const link_dir = dep.path("lib");
     const runtime_dir = dep.path(runtime_sub);
 
-    // A fetched dependency always has a build root; without it there would
-    // be no way to put the DLLs on a test's PATH, so fail loudly instead of
-    // silently producing tests that cannot load them.
-    const dll_dir = if (t.os.tag == .windows)
-        b.pathJoin(&.{ dep.builder.build_root.path orelse return error.SdkPathUnavailable, runtime_sub })
-    else
-        null;
-
     const slang_mod = existing_mod orelse blk: {
         const m = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
@@ -194,6 +185,15 @@ fn addSuite(
 
     const run_tests = b.addRunArtifact(b.addTest(.{ .root_module = tests_mod }));
     run_tests.skip_foreign_checks = true;
-    if (dll_dir) |dir| run_tests.addPathDir(dir);
     test_step.dependOn(&run_tests.step);
+    
+    // Copy Slang Windows DLL to bin output dir
+    //if (t.os.tag == .windows) {
+    //    b.addInstallDirectory(.{
+    //        .source_dir = dep.path("runtime"),
+    //        .install_dir = .bin,
+    //        .install_subdir = "",
+    //    });
+    //}
 }
+

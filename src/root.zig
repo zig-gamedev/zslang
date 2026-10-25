@@ -60,21 +60,24 @@ fn Concat(comptime parts: anytype) type {
                 names = names ++ [_][]const u8{skipName(names.len)};
                 types = types ++ [_]type{*const anyopaque};
             }
-        } else inline for (std.meta.fields(part)) |f| {
-            // Skipped slots from a nested part are renamed to their absolute
-            // index, so two parts can never contribute the same name.
-            const nm = if (f.name[0] == '_')
-                skipName(names.len)
-            else
-                f.name;
-            names = names ++ [_][]const u8{nm};
-            types = types ++ [_]type{f.type};
+        } else {
+            const part_info = @typeInfo(part).@"struct";
+            inline for (part_info.field_names, part_info.field_types) |field_name, FieldType| {
+                // Skipped slots from a nested part are renamed to their absolute
+                // index, so two parts can never contribute the same name.
+                const nm = if (field_name[0] == '_')
+                    skipName(names.len)
+                else
+                    field_name;
+                names = names ++ [_][]const u8{nm};
+                types = types ++ [_]type{FieldType};
+            }
         }
     }
     const n = names.len;
     const names_arr: [n][]const u8 = names[0..n].*;
     const types_arr: [n]type = types[0..n].*;
-    const attrs: [n]std.builtin.Type.StructField.Attributes = @splat(.{});
+    const attrs: [n]std.lang.Type.Struct.FieldAttributes = @splat(.{});
     return @Struct(.@"extern", null, &names_arr, &types_arr, &attrs);
 }
 

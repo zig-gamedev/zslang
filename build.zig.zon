@@ -1,7 +1,7 @@
 .{
     .name = .zslang,
     .version = "2026.14.0-dev",
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .fingerprint = 0xb5444e658bb7bf73,
     .dependencies = .{
         .slang_macos_aarch64 = .{
