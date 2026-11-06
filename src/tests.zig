@@ -292,6 +292,15 @@ fn categoryOf(layout: slang.ProgramLayout, want: []const u8) !slang.ParameterCat
     return error.ParamNotFound;
 }
 
+fn typeLayoutOf(layout: slang.ProgramLayout, want: []const u8) !slang.TypeLayout {
+    var i: u32 = 0;
+    while (i < layout.parameterCount()) : (i += 1) {
+        const p = layout.parameterByIndex(i).?;
+        if (std.mem.eql(u8, p.name(), want)) return p.typeLayout().?;
+    }
+    return error.ParamNotFound;
+}
+
 test "parameter categories differ between a Metal and a SPIR-V layout" {
     const resource_zoo =
         \\struct P { float4 c; };
@@ -301,11 +310,12 @@ test "parameter categories differ between a Metal and a SPIR-V layout" {
         \\Texture2D<float4>         tex;
         \\RWTexture2D<float4>       rw_tex;
         \\SamplerState              samp;
+        \\SamplerCube               env;
         \\
         \\[shader("compute")]
         \\[numthreads(1,1,1)]
         \\void csMain(uint3 tid : SV_DispatchThreadID) {
-        \\    rw_sb[0] = ro_sb[0] + cb.c.x + tex.SampleLevel(samp, float2(0,0), 0).x;
+        \\    rw_sb[0] = ro_sb[0] + cb.c.x + tex.SampleLevel(samp, float2(0,0), 0).x + env.SampleLevel(float3(0,0,1), 0).x;
         \\    rw_tex[tid.xy] = float4(1, 0, 0, 1);
         \\}
     ;
@@ -366,6 +376,30 @@ test "parameter categories differ between a Metal and a SPIR-V layout" {
             try std.testing.expectEqual(slang.ParameterCategory.descriptor_table_slot, p.category());
         }
         try std.testing.expect(layout.parameterCount() > 0);
+
+        // Shape and access are properties of the declaration, not the target:
+        // they tell `Texture2D` from `RWTexture2D`, and a `SamplerCube` (a
+        // combined texture-sampler) from a plain texture.
+        const tex = try typeLayoutOf(layout, "tex");
+        try std.testing.expectEqual(slang.ResourceShape{ .base = .texture_2d }, tex.resourceShape());
+        try std.testing.expectEqual(slang.ResourceAccess.read, tex.resourceAccess());
+        try std.testing.expectEqual(slang.TypeKind.vector, tex.reflectedType().?.resourceResultType().?.kind());
+
+        const rw_tex = try typeLayoutOf(layout, "rw_tex");
+        try std.testing.expectEqual(slang.ResourceShape{ .base = .texture_2d }, rw_tex.resourceShape());
+        try std.testing.expectEqual(slang.ResourceAccess.read_write, rw_tex.resourceAccess());
+
+        const env = try typeLayoutOf(layout, "env");
+        try std.testing.expectEqual(slang.ResourceShape{ .base = .texture_cube, .combined = true }, env.resourceShape());
+        try std.testing.expectEqual(slang.ResourceAccess.read, env.resourceAccess());
+
+        const ro_sb = try typeLayoutOf(layout, "ro_sb");
+        try std.testing.expectEqual(slang.ResourceShape{ .base = .structured_buffer }, ro_sb.resourceShape());
+        try std.testing.expectEqual(slang.ResourceAccess.read, ro_sb.resourceAccess());
+        try std.testing.expectEqual(slang.ResourceAccess.read_write, (try typeLayoutOf(layout, "rw_sb")).resourceAccess());
+
+        // Non-resource types report no shape.
+        try std.testing.expectEqual(slang.ResourceShape{ .base = .none }, (try typeLayoutOf(layout, "cb")).elementTypeLayout().?.resourceShape());
     }
 }
 
