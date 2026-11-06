@@ -356,6 +356,46 @@ pub const ScalarType = enum(c_uint) {
     _,
 };
 
+/// `SlangResourceShape`: a base shape in the low four bits plus flag bits, laid
+/// out to match the C value bit for bit.
+pub const ResourceShape = packed struct(c_uint) {
+    base: Base,
+    feedback: bool = false,
+    shadow: bool = false,
+    array: bool = false,
+    multisample: bool = false,
+    /// A combined texture-sampler, e.g. `Sampler2D` rather than `Texture2D`.
+    combined: bool = false,
+    _: u23 = 0,
+
+    pub const Base = enum(u4) {
+        none = 0,
+        texture_1d = 1,
+        texture_2d = 2,
+        texture_3d = 3,
+        texture_cube = 4,
+        texture_buffer = 5,
+        structured_buffer = 6,
+        byte_address_buffer = 7,
+        unknown = 8,
+        acceleration_structure = 9,
+        texture_subpass = 10,
+        _,
+    };
+};
+
+pub const ResourceAccess = enum(c_uint) {
+    none = 0,
+    read = 1,
+    read_write = 2,
+    raster_ordered = 3,
+    append = 4,
+    consume = 5,
+    write = 6,
+    feedback = 7,
+    _,
+};
+
 pub const ParameterCategory = enum(c_uint) {
     none = 0,
     mixed = 1,
@@ -926,6 +966,12 @@ extern fn spReflectionType_GetKind(t: *SlangReflectionType) TypeKind;
 
 extern fn spReflectionType_GetName(t: *SlangReflectionType) ?[*:0]const u8;
 
+extern fn spReflectionType_GetResourceAccess(t: *SlangReflectionType) ResourceAccess;
+
+extern fn spReflectionType_GetResourceResultType(t: *SlangReflectionType) ?*SlangReflectionType;
+
+extern fn spReflectionType_GetResourceShape(t: *SlangReflectionType) ResourceShape;
+
 extern fn spReflectionType_GetRowCount(t: *SlangReflectionType) c_uint;
 
 extern fn spReflectionType_GetScalarType(t: *SlangReflectionType) ScalarType;
@@ -966,6 +1012,20 @@ pub const Type = struct {
     /// the row vector.
     pub fn elementType(self: Type) ?Type {
         return .{ .raw = spReflectionType_GetElementType(self.raw) orelse return null };
+    }
+    /// Shape of a resource type (texture dimension, buffer kind, flags such as
+    /// `combined`). `.none` for non-resource types.
+    pub fn resourceShape(self: Type) ResourceShape {
+        return spReflectionType_GetResourceShape(self.raw);
+    }
+    /// Read/write access of a resource type, e.g. `.read` for `Texture2D` and
+    /// `.read_write` for `RWTexture2D`.
+    pub fn resourceAccess(self: Type) ResourceAccess {
+        return spReflectionType_GetResourceAccess(self.raw);
+    }
+    /// The type a resource yields when read, e.g. `float4` for `Texture2D<float4>`.
+    pub fn resourceResultType(self: Type) ?Type {
+        return .{ .raw = spReflectionType_GetResourceResultType(self.raw) orelse return null };
     }
 };
 
@@ -1013,6 +1073,16 @@ pub const TypeLayout = struct {
     pub fn scalarType(self: TypeLayout) ScalarType {
         const t = spReflectionTypeLayout_GetType(self.raw) orelse return .none;
         return spReflectionType_GetScalarType(t);
+    }
+    /// Resource shape (for resource types); see `Type.resourceShape`.
+    pub fn resourceShape(self: TypeLayout) ResourceShape {
+        const t = spReflectionTypeLayout_GetType(self.raw) orelse return .{ .base = .none };
+        return spReflectionType_GetResourceShape(t);
+    }
+    /// Resource access (for resource types); see `Type.resourceAccess`.
+    pub fn resourceAccess(self: TypeLayout) ResourceAccess {
+        const t = spReflectionTypeLayout_GetType(self.raw) orelse return .none;
+        return spReflectionType_GetResourceAccess(t);
     }
     /// Number of elements for a vector or (single-dimension) array type; 0 for
     /// non-aggregate types.
