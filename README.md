@@ -43,14 +43,13 @@ wrap inline.
 
 **Bound** - A linked program's entry points and global parameters (4/29 program); each entry
 point's name, stage and parameters (4/12 entry points); types and their layouts — kind,
-scalar type, element type and count, row/column and field counts, sizes, strides, byte
-offsets, binding index and space (9/50 type layouts, 8/21 types, 4/9 variable layouts, 1/11
-variables). Enough to walk global parameters, their bindings and constant-buffer field
-layouts.
+scalar type, element type and count, row/column and field counts, resource shape, access and
+result type, sizes, strides, byte offsets, binding index and space (9/50 type layouts, 11/21
+types, 4/9 variable layouts, 1/11 variables). Enough to walk global parameters, their
+bindings and constant-buffer field layouts.
 
 **TODO** - Finding a type, function or variable by name, type parameters, hashed strings and
-JSON dump; compute thread-group and wave size, result var layout, name overrides; resource
-shape and access (`Texture2D` vs `RWTexture3D` vs `StructuredBuffer`); binding and
+JSON dump; compute thread-group and wave size, result var layout, name overrides; binding and
 descriptor ranges, alignment, matrix layout mode, field lookup by name; semantic
 name/index, image format, pending data layout; modifiers, user attributes and defaults; and
 functions, generics, declarations, user attributes and type parameters.
